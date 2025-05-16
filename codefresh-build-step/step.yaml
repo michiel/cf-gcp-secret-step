@@ -1,0 +1,70 @@
+version: "1.0"
+name: Secure Secret Run
+description: |
+  Securely runs a command with a secret pulled from GCP Secret Manager,
+  without exposing the secret in environment variables, logs, or disk.
+type: step
+tags:
+  - secrets
+  - gcp
+  - secure
+  - reusable
+inputs:
+  SECRET_NAME:
+    type: string
+    required: true
+    description: Name of the GCP secret to retrieve.
+  CMD:
+    type: string
+    required: true
+    description: >
+      Command to run that reads the secret from stdin.
+      Example: terraform apply -var "my_secret=$(cat)"
+steps:
+  run-with-secret:
+    title: Run command with secret via secure stdin
+    image: google/cloud-sdk:slim
+    shell: bash
+    commands:
+      - |
+        #!/bin/bash
+        set -euo pipefail
+        
+        # Ensure SECRET_NAME is set
+        if [ -z "${SECRET_NAME:-}" ]; then
+          echo "SECRET_NAME is required"
+          exit 1
+        fi
+        
+        # Ensure CMD is set
+        if [ -z "${CMD:-}" ]; then
+          echo "CMD is required"
+          exit 1
+        fi
+        
+        echo "Fetching secret '$SECRET_NAME' from GCP Secret Manager..."
+        
+        # Define a function to fetch the secret from GCP Secret Manager with retries
+        fetch_secret() {
+          for i in {1..5}; do
+            # Attempt to fetch the latest version of the secret
+            if gcloud secrets versions access latest --secret="$SECRET_NAME" --quiet; then
+              return 0
+            else
+              echo "Attempt $i failed. Retrying in $((i * 2)) seconds..."
+              sleep $((i * 2))
+            fi
+          done
+          echo "Failed to fetch secret after retries" >&2
+          return 1
+        }
+        
+        # Stream secret securely to command via stdin using process substitution
+        # < <(fetch_secret) means:
+        #   - Run fetch_secret in a subshell
+        #   - Redirect its stdout to a temporary file descriptor
+        #   - Feed that descriptor as stdin to bash -c "$CMD"
+        # This ensures:
+        #   - The secret is never written to disk or stored in an env var
+        #   - The secret is provided only as stdin to the command
+        bash -c "$CMD" < <(fetch_secret)
