@@ -111,18 +111,18 @@ This tool can replace a `gcloud` command in a Codefresh step.
 
 Original `gcloud` command in `commands` section of a step:
 
-'''yaml
+```yaml
 # ...
 commands:
   - gcloud secrets versions access latest --secret="$SECRET_NAME_VAR" --quiet
 # ...
-'''
+```
 
 Using `secretfetcher` (assuming the binary is in PATH or `./secretfetcher`):
 1.  Ensure `secretfetcher` binary is available in your step's image or build it within the step.
 2.  Set `SECRET_NAME` environment variable or pass `-secret-identifier`.
 
-'''yaml
+```yaml
 # ...
 commands:
   # Option 1: Using environment variable (if SECRET_NAME_VAR is the identifier)
@@ -131,12 +131,12 @@ commands:
   # Option 2: Using command-line flag
   - ./secretfetcher -secret-identifier="$SECRET_NAME_VAR" # Assumes GOOGLE_CLOUD_PROJECT is set if SECRET_NAME_VAR is a short name
 # ...
-'''
+```
 
 The output (the secret) will be on `stdout`, which can then be piped or redirected as needed, just like with the `gcloud` command.
 For example, to use in the Codefresh step from the original prompt:
 
-'''yaml
+```yaml
 # ...
 fetch_secret_from_gcp() {
   local i
@@ -160,6 +160,6 @@ fetch_secret_from_gcp() {
 
 bash -c "$USER_COMMAND_SCRIPT" < <(fetch_secret_from_gcp)
 # ...
-'''
+```
 
 Make sure the environment where `secretfetcher` runs has Application Default Credentials configured with the necessary permissions.
