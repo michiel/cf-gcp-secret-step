@@ -110,6 +110,7 @@ These are managed by Go modules and will be downloaded automatically when you ru
 This tool can replace a `gcloud` command in a Codefresh step.
 
 Original `gcloud` command in `commands` section of a step:
+
 '''yaml
 # ...
 commands:
@@ -131,8 +132,10 @@ commands:
   - ./secretfetcher -secret-identifier="$SECRET_NAME_VAR" # Assumes GOOGLE_CLOUD_PROJECT is set if SECRET_NAME_VAR is a short name
 # ...
 '''
+
 The output (the secret) will be on `stdout`, which can then be piped or redirected as needed, just like with the `gcloud` command.
 For example, to use in the Codefresh step from the original prompt:
+
 '''yaml
 # ...
 fetch_secret_from_gcp() {
