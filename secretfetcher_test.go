@@ -14,6 +14,7 @@ func TestGetProjectIDFromEnvOrADC(t *testing.T) {
 	originalProjectEnv := os.Getenv("GOOGLE_CLOUD_PROJECT")
 	defer os.Setenv("GOOGLE_CLOUD_PROJECT", originalProjectEnv)
 
+	// Case 1: GOOGLE_CLOUD_PROJECT is set
 	expectedProjectID := "test-project-from-env"
 	os.Setenv("GOOGLE_CLOUD_PROJECT", expectedProjectID)
 	projectID, err := getProjectIDFromEnvOrADC(ctx)
@@ -24,13 +25,20 @@ func TestGetProjectIDFromEnvOrADC(t *testing.T) {
 		t.Errorf("TestGetProjectIDFromEnvOrADC (env set): expected project ID '%s', got '%s'", expectedProjectID, projectID)
 	}
 
+	// Case 2: GOOGLE_CLOUD_PROJECT is not set, expect ADC lookup to fail in typical test env
 	os.Unsetenv("GOOGLE_CLOUD_PROJECT")
 	_, err = getProjectIDFromEnvOrADC(ctx)
 	if err == nil {
-		t.Log("TestGetProjectIDFromEnvOrADC (env unset): received no error, ADC might be configured. This test path assumes ADC also fails.")
+		// This might pass if ADC is actually configured and finds a project.
+		// For a strict unit test where we want to ensure the "not found" path,
+		// this would require more sophisticated mocking of the google.FindDefaultCredentials call.
+		t.Log("TestGetProjectIDFromEnvOrADC (env unset): received no error, ADC might be configured. This test path assumes ADC also fails to find credentials.")
 	} else {
-		if !strings.Contains(err.Error(), "GOOGLE_CLOUD_PROJECT environment variable is not set") && !strings.Contains(err.Error(), "Could not determine Project ID from Application Default Credentials") {
-			t.Errorf("TestGetProjectIDFromEnvOrADC (env unset): expected error related to missing project ID, got: %v", err)
+		// Check if the error message indicates that ADC failed.
+		// The specific error from google.FindDefaultCredentials when none are found.
+		expectedErrorPart := "could not find default credentials"
+		if !strings.Contains(err.Error(), expectedErrorPart) {
+			t.Errorf("TestGetProjectIDFromEnvOrADC (env unset): expected error to contain '%s', got: %v", expectedErrorPart, err)
 		}
 	}
 }
@@ -78,11 +86,14 @@ func TestBuildFullSecretVersionName(t *testing.T) {
 			wantErrMsgPart:   "secret identifier cannot be empty",
 		},
 		{
-			name:             "short name without project env (expect error from getProjectID)",
+			name:             "short name without project env (expect error from getProjectID due to ADC fail)",
 			secretIdentifier: "my-secret-no-env",
 			projectEnv:       "", 
 			wantErr:          true,
-			wantErrMsgPart:   "Could not determine Project ID", 
+			// This error is wrapped by buildFullSecretVersionName, but the root cause is ADC failure.
+			// The getProjectIDFromEnvOrADC will return an error containing "could not find default credentials".
+			// buildFullSecretVersionName wraps this. We check for the ADC specific part.
+			wantErrMsgPart:   "could not find default credentials", 
 		},
 		{
 			name:             "invalid full path format (too few parts)",
