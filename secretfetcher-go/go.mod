@@ -1,10 +1,10 @@
 module secretfetcher
 
-go 1.18
+go 1.23.0
 
 require (
 	cloud.google.com/go/secretmanager v1.13.0
-	golang.org/x/oauth2 v0.20.0
+	golang.org/x/oauth2 v0.27.0
 )
 
 require (
